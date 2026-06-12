@@ -1,0 +1,1 @@
+{"name":"@icordpro/web","version":"0.3.0-starter","private":true,"type":"module","scripts":{"dev":"node src/server.js"}}
