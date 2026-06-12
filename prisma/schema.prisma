@@ -8,11 +8,12 @@ datasource db {
 }
 
 model Tenant {
-  id        String      @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
-  createdAt DateTime    @default(now())
+  createdAt DateTime      @default(now())
   users     User[]
   tasks     Task[]
+  comments  TaskComment[]
   entries   TimeEntry[]
 }
 
@@ -56,6 +57,7 @@ model TaskComment {
   taskId    String
   body      String
   createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
