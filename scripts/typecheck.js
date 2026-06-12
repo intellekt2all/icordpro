@@ -4,6 +4,8 @@ const required = [
   'package.json',
   'pnpm-workspace.yaml',
   'apps/api/src/server.mjs',
+  'apps/api/src/server-secure.mjs',
+  'apps/api/src/security.mjs',
   'apps/web/src/server.js',
   'prisma/schema.prisma',
   'prisma/migrations/migration_lock.toml',
