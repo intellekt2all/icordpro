@@ -1,6 +1,6 @@
 {
   "name": "icordpro",
-  "version": "0.7.0-starter",
+  "version": "0.10.0-staging-runtime",
   "private": true,
   "description": "IcordPro MVP monorepo starter: API, web, mobile skeleton, docs, CI and smoke-test gates.",
   "packageManager": "pnpm@9.12.3",
@@ -8,6 +8,8 @@
     "dev": "node apps/api/src/server-secure.mjs",
     "dev:api": "node apps/api/src/server-secure.mjs",
     "dev:web": "node apps/web/src/server.js",
+    "start:api": "node apps/api/src/server-secure.mjs",
+    "start:web": "node apps/web/src/server.js",
     "typecheck": "node scripts/typecheck.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js && bash scripts/web-route-test.sh",
