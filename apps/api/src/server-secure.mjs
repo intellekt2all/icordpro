@@ -47,7 +47,8 @@ async function sessionContext(req, res) {
 function isLate(isoValue) {
   const date = new Date(isoValue);
   return date.getHours() > 9 || (date.getHours() === 9 && date.getMinutes() > 0);
-}\n
+}
+
 async function timeSummary(tenantId, userId) {
   const rows = await prisma.timeEntry.findMany({ where: { tenantId, ...(userId ? { userId } : {}) }, orderBy: { createdAt: 'asc' } });
   const byUser = new Map();
