@@ -1,10 +1,10 @@
 {
   "name": "@icordpro/api",
-  "version": "0.3.0-starter",
+  "version": "0.7.0-starter",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/server.mjs",
-    "start": "node src/server.mjs"
+    "dev": "node src/server-secure.mjs",
+    "start": "node src/server-secure.mjs"
   }
 }
