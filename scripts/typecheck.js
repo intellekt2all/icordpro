@@ -8,7 +8,10 @@ const required = [
   'prisma/schema.prisma',
   'prisma/migrations/migration_lock.toml',
   'prisma/migrations/20260612113500_init/migration.sql',
-  'prisma/migrations/20260612113600_task_comment_tenant_fk/migration.sql'
+  'prisma/migrations/20260612113600_task_comment_tenant_fk/migration.sql',
+  'scripts/validate-env.js',
+  '.env.staging.example',
+  'docs/staging/STAGING_RUNBOOK.md'
 ];
 const missing = required.filter((path) => !fs.existsSync(path));
 if (missing.length) {
