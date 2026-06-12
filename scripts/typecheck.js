@@ -1,6 +1,15 @@
 const fs = require('node:fs');
 
-const required = ['package.json', 'pnpm-workspace.yaml', 'apps/api/src/server.mjs', 'apps/web/src/server.js'];
+const required = [
+  'package.json',
+  'pnpm-workspace.yaml',
+  'apps/api/src/server.mjs',
+  'apps/web/src/server.js',
+  'prisma/schema.prisma',
+  'prisma/migrations/migration_lock.toml',
+  'prisma/migrations/20260612113500_init/migration.sql',
+  'prisma/migrations/20260612113600_task_comment_tenant_fk/migration.sql'
+];
 const missing = required.filter((path) => !fs.existsSync(path));
 if (missing.length) {
   console.error('Missing required files:', missing.join(', '));
