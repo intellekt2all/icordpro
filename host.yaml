@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: icordpro-api
+    runtime: node
+    buildCommand: corepack enable && pnpm install && pnpm db:generate && pnpm db:migrate
+    startCommand: pnpm start:api
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: NODE_ENV
+        value: staging
+  - type: web
+    name: icordpro-web
+    runtime: node
+    buildCommand: corepack enable && pnpm install
+    startCommand: pnpm start:web
+    envVars:
+      - key: API_BASE_URL
+        sync: false
+      - key: NODE_ENV
+        value: staging

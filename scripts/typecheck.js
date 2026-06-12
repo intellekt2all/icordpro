@@ -14,6 +14,7 @@ const required = [
   'prisma/migrations/20260612115000_security_hardening/migration.sql',
   'scripts/validate-env.js',
   '.env.staging.example',
+  'host.yaml',
   'docs/staging/STAGING_RUNBOOK.md',
   'docs/security/SECURITY_HARDENING_PLAN.md',
   'docs/agent_tasks/sprint7/01_security_code_patch.md'
