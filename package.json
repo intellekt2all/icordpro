@@ -13,6 +13,8 @@
     "test": "node scripts/test.js && bash scripts/web-route-test.sh",
     "smoke:test": "bash scripts/smoke-test.sh",
     "local:check": "bash scripts/local-check.sh",
+    "env:check": "node scripts/validate-env.js",
+    "preflight:staging": "pnpm env:check && pnpm db:generate && pnpm typecheck && pnpm build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force"
