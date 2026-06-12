@@ -1,7 +1,21 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export function digest(value) {
   return createHash('sha256').update(String(value)).digest('hex');
+}
+
+export function encodeSecret(value) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = pbkdf2Sync(String(value), salt, 120000, 64, 'sha512').toString('hex');
+  return `pbkdf2$${salt}$${hash}`;
+}
+
+export function matchSecret(value, stored) {
+  const [scheme, salt, hash] = String(stored || '').split('$');
+  if (scheme !== 'pbkdf2' || !salt || !hash) return false;
+  const candidate = Buffer.from(pbkdf2Sync(String(value), salt, 120000, 64, 'sha512').toString('hex'));
+  const expected = Buffer.from(hash);
+  return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 
 export function newToken() {
