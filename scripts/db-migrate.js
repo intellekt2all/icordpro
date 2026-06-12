@@ -1,1 +1,2 @@
-console.log('db:migrate placeholder passed. Replace with Prisma migration in Sprint 1 task 03.');
+console.error('Deprecated script. Use `pnpm db:migrate`, which runs `prisma migrate deploy`.');
+process.exit(1);
