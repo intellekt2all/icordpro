@@ -2,13 +2,25 @@ import http from 'node:http';
 import { PrismaClient } from '@prisma/client';
 import { allowAuthAttempt, canDeleteTask, digest, encodeSecret, matchSecret, newToken, readBearer, validEmail, validSecret } from './security.mjs';
 
-const port = Number(process.env.API_PORT || 4000);
+const port = Number(process.env.PORT || process.env.API_PORT || 4000);
+const corsOrigin = process.env.CORS_ORIGIN || '*';
 const prisma = new PrismaClient();
 const demoTenantId = 'tenant_demo';
 const demoUserId = 'user_demo';
 
+function responseHeaders(extra = {}) {
+  return {
+    'content-type': 'application/json',
+    'access-control-allow-origin': corsOrigin,
+    'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization',
+    'access-control-max-age': '86400',
+    ...extra
+  };
+}
+
 function json(res, status, data) {
-  res.writeHead(status, { 'content-type': 'application/json' });
+  res.writeHead(status, responseHeaders());
   res.end(JSON.stringify(data));
 }
 
@@ -76,6 +88,11 @@ async function timeSummary(tenantId, userId) {
 
 http.createServer(async (req, res) => {
   try {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, responseHeaders({ 'content-type': 'text/plain' }));
+      return res.end();
+    }
+
     const url = new URL(req.url || '/', 'http://localhost');
     const parts = url.pathname.split('/').filter(Boolean);
 
