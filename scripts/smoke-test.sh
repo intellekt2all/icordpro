@@ -26,7 +26,11 @@ curl -fsS -X PATCH "${BASE_URL}/tasks/1" -H "${SESSION_HEADER}" -H 'content-type
 curl -fsS -X POST "${BASE_URL}/tasks/1/comments" -H "${SESSION_HEADER}" -H 'content-type: application/json' -d '{"body":"Smoke comment"}' | grep -q 'Smoke comment'
 curl -fsS -H "${SESSION_HEADER}" "${BASE_URL}/tasks/1/comments" | grep -q 'Smoke comment'
 curl -fsS -X DELETE "${BASE_URL}/tasks/1" -H "${SESSION_HEADER}" | grep -q 'true'
-curl -fsS -X POST "${BASE_URL}/attendance/check-in" -H 'content-type: application/json' -d '{"userId":"demo_user"}' | grep -q 'check-in'
-curl -fsS "${BASE_URL}/attendance" | grep -q 'check-in'
+ATTENDANCE_UNAUTH_CODE=$(curl -s -o /tmp/icordpro-attendance-unauth.json -w '%{http_code}' "${BASE_URL}/attendance")
+test "${ATTENDANCE_UNAUTH_CODE}" = '401'
+curl -fsS -X POST "${BASE_URL}/attendance/check-in" -H "${SESSION_HEADER}" -H 'content-type: application/json' -d '{"userId":"demo_user","deviceId":"device-a","createdAt":"2026-06-12T09:05:00.000Z"}' | grep -q 'late'
+curl -fsS -X POST "${BASE_URL}/attendance/check-out" -H "${SESSION_HEADER}" -H 'content-type: application/json' -d '{"userId":"demo_user","deviceId":"device-a","createdAt":"2026-06-12T17:05:00.000Z"}' | grep -q 'check-out'
+curl -fsS -H "${SESSION_HEADER}" "${BASE_URL}/attendance" | grep -q 'device-a'
+curl -fsS -H "${SESSION_HEADER}" "${BASE_URL}/attendance/summary?userId=demo_user" | grep -q 'workingMinutes'
 
 echo 'IcordPro smoke-test passed'
