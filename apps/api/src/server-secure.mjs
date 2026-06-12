@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { PrismaClient } from '@prisma/client';
-import { allowAuthAttempt, canDeleteTask, digest, newToken, readBearer, validEmail, validSecret } from './security.mjs';
+import { allowAuthAttempt, canDeleteTask, digest, encodeSecret, matchSecret, newToken, readBearer, validEmail, validSecret } from './security.mjs';
 
 const port = Number(process.env.API_PORT || 4000);
 const prisma = new PrismaClient();
@@ -47,8 +47,7 @@ async function sessionContext(req, res) {
 function isLate(isoValue) {
   const date = new Date(isoValue);
   return date.getHours() > 9 || (date.getHours() === 9 && date.getMinutes() > 0);
-}
-
+}\n
 async function timeSummary(tenantId, userId) {
   const rows = await prisma.timeEntry.findMany({ where: { tenantId, ...(userId ? { userId } : {}) }, orderBy: { createdAt: 'asc' } });
   const byUser = new Map();
@@ -89,8 +88,8 @@ http.createServer(async (req, res) => {
       const tenant = await demoTenant();
       const user = await prisma.user.upsert({
         where: { tenantId_email: { tenantId: tenant.id, email: input.email } },
-        create: { id: input.email === 'demo@local.test' ? demoUserId : undefined, tenantId: tenant.id, email: input.email, name: input.name || 'Demo User', role: input.role || 'OWNER', passwordHash: digest(secret) },
-        update: { name: input.name || 'Demo User', role: input.role || 'OWNER', passwordHash: digest(secret) }
+        create: { id: input.email === 'demo@local.test' ? demoUserId : undefined, tenantId: tenant.id, email: input.email, name: input.name || 'Demo User', role: input.role || 'OWNER', passwordHash: encodeSecret(secret) },
+        update: { name: input.name || 'Demo User', role: input.role || 'OWNER', passwordHash: encodeSecret(secret) }
       });
       await prisma.auditLog.create({ data: { tenantId: tenant.id, userId: user.id, action: 'auth.register', entity: 'user', entityId: user.id } });
       return json(res, 201, { tenant, user: publicUser(user) });
@@ -102,7 +101,7 @@ http.createServer(async (req, res) => {
       const secret = input.secret || input.password || '';
       const tenant = await demoTenant();
       const user = await prisma.user.findUnique({ where: { tenantId_email: { tenantId: tenant.id, email: input.email || '' } } });
-      if (!user || user.passwordHash !== digest(secret)) return json(res, 401, { error: 'invalid_credentials' });
+      if (!user || !matchSecret(secret, user.passwordHash)) return json(res, 401, { error: 'invalid_credentials' });
       const raw = newToken();
       const session = await prisma.session.create({ data: { tenantId: tenant.id, userId: user.id, tokenHash: digest(raw), expiresAt: new Date(Date.now() + 604800000) } });
       await prisma.auditLog.create({ data: { tenantId: tenant.id, userId: user.id, action: 'auth.login', entity: 'session', entityId: session.id } });
