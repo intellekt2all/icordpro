@@ -46,6 +46,36 @@ function taskList(url) {
   });
 }
 
+function isLate(isoValue) {
+  const date = new Date(isoValue);
+  return date.getHours() > 9 || (date.getHours() === 9 && date.getMinutes() > 0);
+}
+
+function attendanceSummary(userId) {
+  const rows = attendance.filter((row) => !userId || row.userId === userId);
+  const byUser = new Map();
+  for (const row of rows) {
+    const item = byUser.get(row.userId) || { userId: row.userId, workingMinutes: 0, checkIns: 0, checkOuts: 0, devices: new Set() };
+    if (row.type === 'check-in') item.checkIns += 1;
+    if (row.type === 'check-out') item.checkOuts += 1;
+    if (row.deviceId) item.devices.add(row.deviceId);
+    byUser.set(row.userId, item);
+  }
+  for (const item of byUser.values()) {
+    const userRows = rows.filter((row) => row.userId === item.userId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    let openCheckIn = null;
+    for (const row of userRows) {
+      if (row.type === 'check-in') openCheckIn = row;
+      if (row.type === 'check-out' && openCheckIn) {
+        item.workingMinutes += Math.max(0, Math.round((new Date(row.createdAt) - new Date(openCheckIn.createdAt)) / 60000));
+        openCheckIn = null;
+      }
+    }
+    item.devices = [...item.devices];
+  }
+  return [...byUser.values()];
+}
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');
   const segments = url.pathname.split('/').filter(Boolean);
@@ -131,8 +161,25 @@ http.createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname === '/attendance/check-in') { const row = { id: String(attendance.length + 1), type: 'check-in', ...(await read(req)) }; attendance.push(row); return json(res, 201, { attendance: row }); }
-  if (url.pathname === '/attendance/check-out') { const row = { id: String(attendance.length + 1), type: 'check-out', ...(await read(req)) }; attendance.push(row); return json(res, 201, { attendance: row }); }
-  if (url.pathname === '/attendance') return json(res, 200, { data: attendance });
+  if (segments[0] === 'attendance') {
+    if (!requireSession(req, res)) return;
+    if (segments.length === 1 && req.method === 'GET') return json(res, 200, { data: attendance });
+    if (segments.length === 2 && segments[1] === 'summary' && req.method === 'GET') return json(res, 200, { data: attendanceSummary(url.searchParams.get('userId')) });
+    if (segments.length === 2 && ['check-in', 'check-out'].includes(segments[1]) && req.method === 'POST') {
+      const input = await read(req);
+      const createdAt = input.createdAt || new Date().toISOString();
+      const row = {
+        id: String(attendance.length + 1),
+        type: segments[1],
+        userId: input.userId || 'demo_user',
+        deviceId: input.deviceId || 'demo-device',
+        createdAt,
+        late: segments[1] === 'check-in' ? isLate(createdAt) : false
+      };
+      attendance.push(row);
+      return json(res, 201, { attendance: row });
+    }
+  }
+
   return json(res, 404, { error: 'not_found' });
 }).listen(port, () => console.log(`IcordPro API on ${port}`));
