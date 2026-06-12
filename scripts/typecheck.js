@@ -15,6 +15,7 @@ const required = [
   'scripts/validate-env.js',
   '.env.staging.example',
   'host.yaml',
+  'render.yaml',
   'docs/staging/STAGING_RUNBOOK.md',
   'docs/security/SECURITY_HARDENING_PLAN.md',
   'docs/agent_tasks/sprint7/01_security_code_patch.md'
