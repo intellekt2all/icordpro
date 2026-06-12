@@ -1,73 +1,111 @@
 import http from 'node:http';
 
 const port = Number(process.env.WEB_PORT || 3000);
-const cookieName = 'icordpro_session';
+const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:4000';
 
-function hasSession(req) {
-  return (req.headers.cookie || '').split(';').map((item) => item.trim()).includes(`${cookieName}=demo-session`);
-}
-
-function redirect(res, location, headers = {}) {
-  res.writeHead(302, { location, ...headers });
-  res.end();
-}
-
-function page(title, body) {
-  return `<!doctype html>
+const html = `<!doctype html>
 <html lang="uz">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
+  <title>IcordPro User Preview</title>
   <style>
     body { margin:0; font-family: Arial, sans-serif; background:#0f172a; color:#e5e7eb; }
-    main { max-width: 960px; margin: 0 auto; padding: 48px 20px; }
-    .card { background:#111827; border:1px solid #334155; border-radius:20px; padding:24px; margin-top:20px; }
-    a { color:#93c5fd; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
+    .card { background:#111827; border:1px solid #334155; border-radius:20px; padding:20px; margin-top:16px; }
+    input, select, button { width:100%; box-sizing:border-box; padding:12px; margin-top:8px; border-radius:12px; border:1px solid #475569; }
+    button { cursor:pointer; font-weight:700; }
+    pre { white-space:pre-wrap; background:#020617; border-radius:12px; padding:12px; min-height:80px; }
+    .muted { color:#94a3b8; }
   </style>
 </head>
-<body><main>${body}</main></body>
+<body>
+<main>
+  <h1>IcordPro MVP</h1>
+  <p class="muted">API-connected user preview. API: <span id="apiBase"></span></p>
+  <div class="grid">
+    <section class="card">
+      <h2>Register / Login</h2>
+      <input id="name" placeholder="Name" value="Demo Owner" />
+      <input id="email" placeholder="Email" value="demo@local.test" />
+      <input id="secret" placeholder="Secret" value="demo-secret-123" type="password" />
+      <select id="role"><option>OWNER</option><option>ADMIN</option><option>MANAGER</option><option>EMPLOYEE</option></select>
+      <button onclick="registerUser()">Register</button>
+      <button onclick="loginUser()">Login</button>
+      <button onclick="logoutUser()">Logout</button>
+    </section>
+    <section class="card">
+      <h2>Session</h2>
+      <button onclick="loadMe()">Load /me</button>
+      <pre id="sessionBox">No session yet</pre>
+    </section>
+  </div>
+  <div class="grid">
+    <section class="card">
+      <h2>Tasks</h2>
+      <input id="taskTitle" placeholder="Task title" value="First real task" />
+      <button onclick="createTask()">Create task</button>
+      <button onclick="listTasks()">List tasks</button>
+      <pre id="taskBox">No tasks loaded</pre>
+    </section>
+    <section class="card">
+      <h2>Timeclock</h2>
+      <input id="deviceId" placeholder="Device ID" value="browser-preview" />
+      <button onclick="checkIn()">Check in</button>
+      <button onclick="checkOut()">Check out</button>
+      <button onclick="listTime()">List time entries</button>
+      <pre id="timeBox">No time entries loaded</pre>
+    </section>
+  </div>
+  <section class="card">
+    <h2>Audit</h2>
+    <button onclick="loadAudit()">Load audit log</button>
+    <pre id="auditBox">No audit loaded</pre>
+  </section>
+</main>
+<script>
+const API_BASE_URL = '${apiBaseUrl}';
+document.getElementById('apiBase').textContent = API_BASE_URL;
+function token() { return localStorage.getItem('icordpro_session') || ''; }
+function headers() { return { 'content-type': 'application/json', ...(token() ? { authorization: 'Bearer ' + token() } : {}) }; }
+function out(id, data) { document.getElementById(id).textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2); }
+async function api(path, options = {}) {
+  const res = await fetch(API_BASE_URL + path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw data;
+  return data;
+}
+async function registerUser() {
+  try {
+    const data = await api('/auth/register', { method:'POST', body: JSON.stringify({ name: name.value, email: email.value, secret: secret.value, role: role.value }) });
+    out('sessionBox', data);
+  } catch (e) { out('sessionBox', e); }
+}
+async function loginUser() {
+  try {
+    const data = await api('/auth/login', { method:'POST', body: JSON.stringify({ email: email.value, secret: secret.value }) });
+    localStorage.setItem('icordpro_session', data.session);
+    out('sessionBox', data);
+  } catch (e) { out('sessionBox', e); }
+}
+async function logoutUser() {
+  try { await api('/auth/logout'); } catch {}
+  localStorage.removeItem('icordpro_session');
+  out('sessionBox', 'Logged out');
+}
+async function loadMe() { try { out('sessionBox', await api('/me')); } catch (e) { out('sessionBox', e); } }
+async function createTask() { try { out('taskBox', await api('/tasks', { method:'POST', body: JSON.stringify({ title: taskTitle.value, status:'todo', priority:'medium' }) })); } catch (e) { out('taskBox', e); } }
+async function listTasks() { try { out('taskBox', await api('/tasks')); } catch (e) { out('taskBox', e); } }
+async function checkIn() { try { out('timeBox', await api('/attendance/check-in', { method:'POST', body: JSON.stringify({ deviceId: deviceId.value }) })); } catch (e) { out('timeBox', e); } }
+async function checkOut() { try { out('timeBox', await api('/attendance/check-out', { method:'POST', body: JSON.stringify({ deviceId: deviceId.value }) })); } catch (e) { out('timeBox', e); } }
+async function listTime() { try { out('timeBox', await api('/attendance')); } catch (e) { out('timeBox', e); } }
+async function loadAudit() { try { out('auditBox', await api('/audit-log')); } catch (e) { out('auditBox', e); } }
+</script>
+</body>
 </html>`;
-}
-
-function html(res, title, body) {
-  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-  res.end(page(title, body));
-}
 
 http.createServer((req, res) => {
-  const url = new URL(req.url || '/', 'http://localhost');
-
-  if (url.pathname === '/') return redirect(res, hasSession(req) ? '/dashboard' : '/login');
-
-  if (url.pathname === '/login') {
-    if (hasSession(req)) return redirect(res, '/dashboard');
-    return html(res, 'IcordPro Login', `
-      <h1>IcordPro Login</h1>
-      <section class="card">
-        <p>Starter login page. Use /login/demo for local demo session.</p>
-        <a href="/login/demo">Demo login</a>
-      </section>
-    `);
-  }
-
-  if (url.pathname === '/login/demo') {
-    return redirect(res, '/dashboard', { 'set-cookie': `${cookieName}=demo-session; Path=/; HttpOnly; SameSite=Lax` });
-  }
-
-  if (url.pathname === '/logout') {
-    return redirect(res, '/login', { 'set-cookie': `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` });
-  }
-
-  if (url.pathname === '/dashboard') {
-    if (!hasSession(req)) return redirect(res, '/login');
-    return html(res, 'IcordPro Dashboard', `
-      <h1>IcordPro Dashboard</h1>
-      <p>Protected dashboard is available only with a valid starter session.</p>
-      <section class="card"><a href="/logout">Logout</a></section>
-    `);
-  }
-
-  res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-  res.end('Not found');
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  res.end(html);
 }).listen(port, () => console.log(`IcordPro web on ${port}`));
