@@ -8,14 +8,16 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IcordPro User Preview</title>
+  <title>IcordPro Local Preview</title>
   <style>
     body { margin:0; font-family: Arial, sans-serif; background:#0f172a; color:#e5e7eb; }
     main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
     .card { background:#111827; border:1px solid #334155; border-radius:20px; padding:20px; margin-top:16px; }
+    .hero { border-color:#6366f1; }
     input, select, button { width:100%; box-sizing:border-box; padding:12px; margin-top:8px; border-radius:12px; border:1px solid #475569; }
     button { cursor:pointer; font-weight:700; }
+    .primary { background:#4f46e5; color:white; border-color:#4f46e5; }
     pre { white-space:pre-wrap; background:#020617; border-radius:12px; padding:12px; min-height:80px; }
     .muted { color:#94a3b8; }
   </style>
@@ -23,10 +25,15 @@ const html = `<!doctype html>
 <body>
 <main>
   <h1>IcordPro MVP</h1>
-  <p class="muted">API-connected user preview. API: <span id="apiBase"></span></p>
+  <p class="muted">Local preview. API: <span id="apiBase"></span></p>
+  <section class="card hero">
+    <h2>Eng oson kirish</h2>
+    <p class="muted">Registratsiyani bilmasangiz, shu tugmani bosing. Demo user avtomatik yaratiladi va tizimga kiradi.</p>
+    <button class="primary" onclick="quickDemo()">Demo userni yaratish va kirish</button>
+  </section>
   <div class="grid">
     <section class="card">
-      <h2>Register / Login</h2>
+      <h2>Manual Register / Login</h2>
       <input id="name" placeholder="Name" value="Demo Owner" />
       <input id="email" placeholder="Email" value="demo@local.test" />
       <input id="secret" placeholder="Secret" value="demo-secret-123" type="password" />
@@ -75,6 +82,18 @@ async function api(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw data;
   return data;
+}
+async function quickDemo() {
+  name.value = 'Demo Owner';
+  email.value = 'demo@local.test';
+  secret.value = 'demo-secret-123';
+  role.value = 'OWNER';
+  try {
+    await api('/auth/register', { method:'POST', body: JSON.stringify({ name: name.value, email: email.value, secret: secret.value, role: role.value }) });
+    const data = await api('/auth/login', { method:'POST', body: JSON.stringify({ email: email.value, secret: secret.value }) });
+    localStorage.setItem('icordpro_session', data.session);
+    out('sessionBox', { message: 'Demo user ready. You are logged in.', user: data.user });
+  } catch (e) { out('sessionBox', e); }
 }
 async function registerUser() {
   try {
