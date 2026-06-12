@@ -15,18 +15,23 @@ model Tenant {
   tasks     Task[]
   comments  TaskComment[]
   entries   TimeEntry[]
+  sessions  Session[]
+  auditLogs AuditLog[]
 }
 
 model User {
-  id        String      @id @default(cuid())
-  tenantId  String
-  email     String
-  name      String
-  role      String      @default("OWNER")
-  createdAt DateTime    @default(now())
-  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tasks     Task[]
-  entries   TimeEntry[]
+  id           String      @id @default(cuid())
+  tenantId     String
+  email        String
+  name         String
+  passwordHash String      @default("")
+  role         String      @default("OWNER")
+  createdAt    DateTime    @default(now())
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+  entries      TimeEntry[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -78,4 +83,37 @@ model TimeEntry {
   @@index([tenantId])
   @@index([tenantId, userId])
   @@index([tenantId, type])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  String   @default("{}")
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([action])
 }
