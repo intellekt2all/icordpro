@@ -48,7 +48,6 @@ const html = `<!doctype html>
     .toast.show { display:block; }
     .toast.error { border-color:#ef4444; color:#fecaca; }
     .toast.ok { border-color:#22c55e; color:#bbf7d0; }
-    pre { white-space:pre-wrap; background:#020617; border-radius:12px; padding:12px; min-height:80px; overflow:auto; }
     nav { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
     nav a { color:#cbd5e1; border:1px solid #334155; border-radius:999px; padding:8px 12px; text-decoration:none; }
     nav a:hover { border-color:#818cf8; }
@@ -61,7 +60,7 @@ const html = `<!doctype html>
   <header>
     <div>
       <h1>IcordPro Staging</h1>
-      <p class="muted">MVP internetda ishlayapti. Bu sahifa real staging test uchun: auth, vazifa, davomat va audit.</p>
+      <p class="muted">MVP internetda ishlayapti. Bu sahifa real staging test uchun: auth, vazifa, davomat, audit va admin oqimlari.</p>
       <div class="status-line">
         <span class="pill ok">API: <span id="apiBase"></span></span>
         <span class="pill warn">Free Render instance — birinchi yuklanish sekin bo'lishi mumkin</span>
@@ -69,7 +68,7 @@ const html = `<!doctype html>
     </div>
     <div class="card" style="margin-top:0; min-width:260px;">
       <h3>Staging checklist</h3>
-      <p class="small muted">Har deploydan keyin: login, task, timeclock, audit ishlashini tekshiring.</p>
+      <p class="small muted">Har deploydan keyin: login, task, attendance, admin va audit ishlashini tekshiring.</p>
       <button class="ghost" onclick="loadMe()">Sessionni tekshirish</button>
     </div>
   </header>
@@ -78,12 +77,13 @@ const html = `<!doctype html>
     <a href="#auth">Auth</a>
     <a href="#tasks">Tasks</a>
     <a href="#attendance">Attendance</a>
+    <a href="#admin">Admin</a>
     <a href="#audit">Audit</a>
   </nav>
 
   <section id="auth" class="card hero">
     <h2>Eng oson kirish</h2>
-    <p class="muted">Demo userni avtomatik yaratadi va tizimga kiradi. Real mijozlarga ko'rsatishdan oldin oddiy login/register ekraniga almashtiriladi.</p>
+    <p class="muted">Demo userni avtomatik yaratadi va tizimga kiradi. Keyin Admin bo‘limida tenant va userlarni boshqarish mumkin.</p>
     <div class="actions">
       <button class="primary" onclick="quickDemo()">Demo userni yaratish va kirish</button>
       <button class="ghost" onclick="logoutUser()">Logout</button>
@@ -121,18 +121,9 @@ const html = `<!doctype html>
       <button style="width:auto;" onclick="listTasks()">Ro'yxatni yangilash</button>
     </div>
     <div class="grid">
-      <div>
-        <label>Vazifa nomi</label>
-        <input id="taskTitle" placeholder="Task title" value="First real task" />
-      </div>
-      <div>
-        <label>Prioritet</label>
-        <select id="taskPriority"><option value="medium">medium</option><option value="high">high</option><option value="low">low</option></select>
-      </div>
-      <div>
-        <label>Status</label>
-        <select id="taskStatus"><option value="todo">todo</option><option value="in-progress">in-progress</option><option value="done">done</option></select>
-      </div>
+      <div><label>Vazifa nomi</label><input id="taskTitle" placeholder="Task title" value="First real task" /></div>
+      <div><label>Prioritet</label><select id="taskPriority"><option value="medium">medium</option><option value="high">high</option><option value="low">low</option></select></div>
+      <div><label>Status</label><select id="taskStatus"><option value="todo">todo</option><option value="in-progress">in-progress</option><option value="done">done</option></select></div>
     </div>
     <label>Izoh</label>
     <textarea id="taskDescription" placeholder="Task description"></textarea>
@@ -163,11 +154,52 @@ const html = `<!doctype html>
     <div id="timeBox" class="list"><div class="empty">Davomat hali yuklanmagan</div></div>
   </section>
 
+  <section id="admin" class="card">
+    <div class="row-head">
+      <div>
+        <h2>Admin</h2>
+        <p class="muted">Tenant va user boshqaruvi. Bu bo‘lim Sprint 12 API endpointlariga ulangan.</p>
+      </div>
+      <button style="width:auto;" onclick="loadAdmin()">Admin ma'lumotlarini yuklash</button>
+    </div>
+    <div class="grid">
+      <section class="row">
+        <h3>Tenant</h3>
+        <label>Kompaniya nomi</label>
+        <input id="tenantName" placeholder="Tenant name" value="Demo Tenant" />
+        <div class="actions" style="margin-top:10px;">
+          <button onclick="loadTenant()">Tenantni yuklash</button>
+          <button class="primary" onclick="updateTenant()">Tenantni saqlash</button>
+        </div>
+        <div id="tenantBox" class="empty" style="margin-top:12px;">Tenant hali yuklanmagan</div>
+      </section>
+      <section class="row">
+        <h3>Yangi user</h3>
+        <label>Ism</label>
+        <input id="newUserName" value="Smoke Manager" />
+        <label>Email</label>
+        <input id="newUserEmail" value="manager@example.local" />
+        <label>Parol / secret</label>
+        <input id="newUserSecret" value="manager-secret-123" type="password" />
+        <label>Rol</label>
+        <select id="newUserRole"><option>MANAGER</option><option>EMPLOYEE</option><option>ADMIN</option></select>
+        <button class="primary" onclick="createUser()">User yaratish</button>
+      </section>
+    </div>
+    <div style="margin-top:16px;">
+      <div class="row-head">
+        <h3>Users</h3>
+        <button style="width:auto;" onclick="listUsers()">Userlarni yangilash</button>
+      </div>
+      <div id="usersBox" class="list"><div class="empty">Userlar hali yuklanmagan</div></div>
+    </div>
+  </section>
+
   <section id="audit" class="card">
     <div class="row-head">
       <div>
         <h2>Audit</h2>
-        <p class="muted">Auth, task va attendance amallari auditga yoziladi.</p>
+        <p class="muted">Auth, task, attendance va admin amallari auditga yoziladi.</p>
       </div>
       <button style="width:auto;" onclick="loadAudit()">Auditni yuklash</button>
     </div>
@@ -201,7 +233,7 @@ async function quickDemo() {
     localStorage.setItem('icordpro_session', data.session);
     renderSession(data);
     toast('Demo user tayyor. Tizimga kirildi.');
-    await listTasks();
+    await Promise.all([listTasks(), loadAdmin()]);
   } catch (e) { toast(e.error || e.message || 'Demo login xatosi', 'error'); }
 }
 async function registerUser() {
@@ -217,7 +249,7 @@ async function loginUser() {
     localStorage.setItem('icordpro_session', data.session);
     renderSession(data);
     toast('Login muvaffaqiyatli.');
-    await listTasks();
+    await Promise.all([listTasks(), loadAdmin()]);
   } catch (e) { toast(e.error || e.message || 'Login xatosi', 'error'); }
 }
 async function logoutUser() {
@@ -256,6 +288,51 @@ function renderTime(items) {
 async function checkIn() { try { await api('/attendance/check-in', { method:'POST', body: JSON.stringify({ deviceId: deviceId.value }) }); toast('Check-in yozildi.'); await listTime(); } catch (e) { toast(e.error || e.message || 'Check-in xatosi', 'error'); } }
 async function checkOut() { try { await api('/attendance/check-out', { method:'POST', body: JSON.stringify({ deviceId: deviceId.value }) }); toast('Check-out yozildi.'); await listTime(); } catch (e) { toast(e.error || e.message || 'Check-out xatosi', 'error'); } }
 async function listTime() { try { const result = await api('/attendance'); renderTime(result.data || []); } catch (e) { toast(e.error || e.message || 'Davomat ro‘yxati xatosi', 'error'); } }
+async function loadTenant() {
+  try {
+    const result = await api('/tenant');
+    tenantName.value = result.tenant?.name || '';
+    renderBox('tenantBox', '<div class="row"><div class="row-title">' + escapeHtml(result.tenant?.name || '-') + '</div><p class="small muted">ID: ' + escapeHtml(result.tenant?.id || '-') + '</p></div>');
+  } catch (e) { toast(e.error || e.message || 'Tenant yuklash xatosi', 'error'); }
+}
+async function updateTenant() {
+  try {
+    const result = await api('/tenant', { method:'PATCH', body: JSON.stringify({ name: tenantName.value }) });
+    renderBox('tenantBox', '<div class="row"><div class="row-title">' + escapeHtml(result.tenant.name) + '</div><p class="small muted">Tenant saqlandi</p></div>');
+    toast('Tenant yangilandi.');
+  } catch (e) { toast(e.error || e.message || 'Tenant saqlash xatosi', 'error'); }
+}
+function renderUsers(items) {
+  if (!items.length) return renderBox('usersBox', '<div class="empty">User yo‘q</div>');
+  renderBox('usersBox', items.map(function(user) {
+    const roleSelect = '<select id="role-' + escapeHtml(user.id) + '"><option ' + (user.role === 'ADMIN' ? 'selected' : '') + '>ADMIN</option><option ' + (user.role === 'MANAGER' ? 'selected' : '') + '>MANAGER</option><option ' + (user.role === 'EMPLOYEE' ? 'selected' : '') + '>EMPLOYEE</option></select>';
+    return '<div class="row"><div class="row-head"><div><div class="row-title">' + escapeHtml(user.name) + '</div><div class="small muted">' + escapeHtml(user.email) + '</div></div><span class="tag">' + escapeHtml(user.role) + '</span></div><div class="grid" style="margin-top:8px;"><div>' + roleSelect + '</div><div><button onclick="updateUserRole(\'' + escapeHtml(user.id) + '\')">Rolni saqlash</button></div><div><button class="danger" onclick="deleteUser(\'' + escapeHtml(user.id) + '\')">Userni o‘chirish</button></div></div></div>';
+  }).join(''));
+}
+async function listUsers() { try { const result = await api('/users'); renderUsers(result.data || []); } catch (e) { toast(e.error || e.message || 'Users yuklash xatosi', 'error'); } }
+async function createUser() {
+  try {
+    await api('/users', { method:'POST', body: JSON.stringify({ name: newUserName.value, email: newUserEmail.value, secret: newUserSecret.value, role: newUserRole.value }) });
+    toast('User yaratildi.');
+    await listUsers();
+  } catch (e) { toast(e.error || e.message || 'User yaratish xatosi', 'error'); }
+}
+async function updateUserRole(userId) {
+  try {
+    const el = document.getElementById('role-' + userId);
+    await api('/users/' + encodeURIComponent(userId), { method:'PATCH', body: JSON.stringify({ role: el.value }) });
+    toast('Rol yangilandi.');
+    await listUsers();
+  } catch (e) { toast(e.error || e.message || 'Rol yangilash xatosi', 'error'); }
+}
+async function deleteUser(userId) {
+  try {
+    await api('/users/' + encodeURIComponent(userId), { method:'DELETE' });
+    toast('User o‘chirildi.');
+    await listUsers();
+  } catch (e) { toast(e.error || e.message || 'User o‘chirish xatosi', 'error'); }
+}
+async function loadAdmin() { await Promise.all([loadTenant(), listUsers()]); }
 function renderAudit(items) {
   if (!items.length) return renderBox('auditBox', '<div class="empty">Audit yozuvi yo‘q</div>');
   renderBox('auditBox', items.map(function(row) {
