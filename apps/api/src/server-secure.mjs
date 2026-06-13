@@ -7,6 +7,7 @@ const corsOrigin = process.env.CORS_ORIGIN || '*';
 const prisma = new PrismaClient();
 const demoTenantId = 'tenant_demo';
 const demoUserId = 'user_demo';
+const roles = ['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE'];
 
 function responseHeaders(extra = {}) {
   return {
@@ -54,6 +55,38 @@ async function sessionContext(req, res) {
     return null;
   }
   return { tenantId: session.tenantId, userId: session.userId, user: session.user, session };
+}
+
+function normalizeRole(value, fallback = 'EMPLOYEE') {
+  const role = String(value || fallback).toUpperCase();
+  return roles.includes(role) ? role : fallback;
+}
+
+function canViewUsers(role) {
+  return ['OWNER', 'ADMIN', 'MANAGER'].includes(role);
+}
+
+function canManageTenant(role) {
+  return ['OWNER', 'ADMIN'].includes(role);
+}
+
+function canCreateUserRole(actorRole, targetRole) {
+  if (actorRole === 'OWNER') return ['ADMIN', 'MANAGER', 'EMPLOYEE'].includes(targetRole);
+  if (actorRole === 'ADMIN') return ['MANAGER', 'EMPLOYEE'].includes(targetRole);
+  if (actorRole === 'MANAGER') return targetRole === 'EMPLOYEE';
+  return false;
+}
+
+function canUpdateUserRole(actorRole, currentRole, targetRole) {
+  if (actorRole === 'OWNER') return currentRole !== 'OWNER' && targetRole !== 'OWNER';
+  if (actorRole === 'ADMIN') return ['MANAGER', 'EMPLOYEE'].includes(currentRole) && ['MANAGER', 'EMPLOYEE'].includes(targetRole);
+  return false;
+}
+
+function canRemoveUserRole(actorRole, targetRole) {
+  if (actorRole === 'OWNER') return targetRole !== 'OWNER';
+  if (actorRole === 'ADMIN') return ['MANAGER', 'EMPLOYEE'].includes(targetRole);
+  return false;
 }
 
 function isLate(isoValue) {
@@ -152,6 +185,78 @@ http.createServer(async (req, res) => {
       if (!canDeleteTask(ctx.user.role)) return json(res, 403, { error: 'forbidden' });
       const data = await prisma.auditLog.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: 'desc' }, take: 50 });
       return json(res, 200, { data });
+    }
+
+    if (url.pathname === '/tenant') {
+      const ctx = await sessionContext(req, res);
+      if (!ctx) return;
+      if (req.method === 'GET') {
+        const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
+        return json(res, 200, { tenant });
+      }
+      if (req.method === 'PATCH') {
+        if (!canManageTenant(ctx.user.role)) return json(res, 403, { error: 'forbidden' });
+        const input = await read(req);
+        const name = String(input.name || '').trim();
+        if (name.length < 2) return json(res, 400, { error: 'invalid_tenant_payload' });
+        const tenant = await prisma.tenant.update({ where: { id: ctx.tenantId }, data: { name } });
+        await writeAudit(ctx, 'tenant.update', 'tenant', tenant.id, { name });
+        return json(res, 200, { tenant });
+      }
+    }
+
+    if (parts[0] === 'users') {
+      const ctx = await sessionContext(req, res);
+      if (!ctx) return;
+      if (!canViewUsers(ctx.user.role)) return json(res, 403, { error: 'forbidden' });
+
+      if (parts.length === 1 && req.method === 'GET') {
+        const data = await prisma.user.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: 'asc' } });
+        return json(res, 200, { data: data.map(publicUser) });
+      }
+
+      if (parts.length === 1 && req.method === 'POST') {
+        const input = await read(req);
+        const email = String(input.email || '').trim().toLowerCase();
+        const name = String(input.name || '').trim();
+        const role = normalizeRole(input.role, 'EMPLOYEE');
+        const secret = input.secret || input.password || 'change-me-123';
+        if (!validEmail(email) || name.length < 2 || !validSecret(secret)) return json(res, 400, { error: 'invalid_user_payload' });
+        if (!canCreateUserRole(ctx.user.role, role)) return json(res, 403, { error: 'forbidden_role' });
+        const existing = await prisma.user.findUnique({ where: { tenantId_email: { tenantId: ctx.tenantId, email } } });
+        if (existing) return json(res, 409, { error: 'user_exists' });
+        const user = await prisma.user.create({ data: { tenantId: ctx.tenantId, email, name, role, passwordHash: encodeSecret(secret) } });
+        await writeAudit(ctx, 'user.create', 'user', user.id, { role });
+        return json(res, 201, { user: publicUser(user) });
+      }
+
+      if (parts.length === 2 && req.method === 'PATCH') {
+        const existing = await prisma.user.findFirst({ where: { id: parts[1], tenantId: ctx.tenantId } });
+        if (!existing) return json(res, 404, { error: 'user_not_found' });
+        const input = await read(req);
+        const nextRole = input.role ? normalizeRole(input.role, existing.role) : existing.role;
+        if (!canUpdateUserRole(ctx.user.role, existing.role, nextRole)) return json(res, 403, { error: 'forbidden_role' });
+        const data = { name: input.name ? String(input.name).trim() : existing.name, role: nextRole };
+        if (input.secret || input.password) {
+          const secret = input.secret || input.password;
+          if (!validSecret(secret)) return json(res, 400, { error: 'invalid_secret' });
+          data.passwordHash = encodeSecret(secret);
+        }
+        const user = await prisma.user.update({ where: { id: existing.id }, data });
+        await writeAudit(ctx, 'user.update', 'user', user.id, { role: user.role });
+        return json(res, 200, { user: publicUser(user) });
+      }
+
+      if (parts.length === 2 && req.method === 'DELETE') {
+        const existing = await prisma.user.findFirst({ where: { id: parts[1], tenantId: ctx.tenantId } });
+        if (!existing) return json(res, 404, { error: 'user_not_found' });
+        if (existing.id === ctx.userId) return json(res, 400, { error: 'self_delete_blocked' });
+        if (!canRemoveUserRole(ctx.user.role, existing.role)) return json(res, 403, { error: 'forbidden_role' });
+        await prisma.session.deleteMany({ where: { tenantId: ctx.tenantId, userId: existing.id } });
+        await writeAudit(ctx, 'user.delete', 'user', existing.id, { role: existing.role, email: existing.email });
+        await prisma.user.delete({ where: { id: existing.id } });
+        return json(res, 200, { ok: true, user: publicUser(existing) });
+      }
     }
 
     if (parts[0] === 'tasks') {
