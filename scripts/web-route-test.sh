@@ -10,10 +10,11 @@ trap 'kill $PID 2>/dev/null || true' EXIT
 
 sleep 1
 
-curl -fsS "${BASE_URL}/" | grep -q 'IcordPro MVP'
-curl -fsS "${BASE_URL}/" | grep -q 'Register / Login'
-curl -fsS "${BASE_URL}/" | grep -q 'Create task'
-curl -fsS "${BASE_URL}/" | grep -q 'Timeclock'
+curl -fsS "${BASE_URL}/" | grep -q 'IcordPro Staging'
+curl -fsS "${BASE_URL}/" | grep -q 'Staging checklist'
+curl -fsS "${BASE_URL}/" | grep -q 'Manual login/register'
+curl -fsS "${BASE_URL}/" | grep -q 'Vazifa yaratish'
+curl -fsS "${BASE_URL}/" | grep -q 'Attendance'
 curl -fsS "${BASE_URL}/" | grep -q 'Audit'
 
 echo 'IcordPro web route test passed'
